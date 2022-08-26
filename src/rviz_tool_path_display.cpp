@@ -52,6 +52,17 @@ Ogre::Quaternion quaternionRosToOgre(geometry_msgs::Quaternion const& quaternion
   rviz::normalizeQuaternion(quaternion, q);
   return q;
 }
+
+void updateMaterialColor(Ogre::MaterialPtr material, const QColor& color, const bool override_self_illumination = true)
+{
+  qreal r, g, b, a;
+  color.getRgbF(&r, &g, &b, &a);
+  material->setDiffuse(r, g, b, a);
+  material->setSpecular(r, g, b, a);
+  material->setAmbient(r, g, b);
+  if (override_self_illumination)
+    material->setSelfIllumination(r, g, b);
+}
 }  // namespace
 
 namespace rviz
@@ -70,6 +81,14 @@ ToolPathDisplay::ToolPathDisplay()
                                               SLOT(updatePtsVisibility()));
   lines_visibility_property_ = new BoolProperty("Show Lines", true, "Toggles the visibiltiy of the lines display", this,
                                                 SLOT(updateLinesVisibility()));
+
+  pts_color_property_ = new ColorProperty("Points Color", QColor(255, 255, 255), "The color of the points display",
+                                          this, SLOT(updatePtsColor()));
+  pts_size_property_ =
+      new FloatProperty("Points Size", 5.0, "The size of the points (pixels)", this, SLOT(updatePtsSize()));
+
+  lines_color_property_ = new ColorProperty("Lines Color", QColor(255, 255, 255), "The color of the lines display",
+                                            this, SLOT(updateLinesColor()));
 }
 
 ToolPathDisplay::~ToolPathDisplay()
@@ -78,6 +97,8 @@ ToolPathDisplay::~ToolPathDisplay()
   {
     scene_manager_->destroyManualObject(pts_object_);
     scene_manager_->destroyManualObject(lines_object_);
+    Ogre::MaterialManager::getSingleton().remove(pts_material_->getName());
+    Ogre::MaterialManager::getSingleton().remove(lines_material_->getName());
   }
 }
 
@@ -88,11 +109,18 @@ void ToolPathDisplay::onInitialize()
 
   pts_object_ = scene_manager_->createManualObject();
   scene_node_->attachObject(pts_object_);
+  pts_material_ = Ogre::MaterialManager::getSingleton().create("tool_path_pts_material",
+                                                               Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
   lines_object_ = scene_manager_->createManualObject();
   scene_node_->attachObject(lines_object_);
+  lines_material_ = Ogre::MaterialManager::getSingleton().create(
+      "tool_path_lines_material", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
   updateDisplay();
+  updatePtsSize();
+  updatePtsColor();
+  updateLinesColor();
 }
 
 bool validateFloats(const geometry_msgs::PoseArray& msg)
@@ -185,7 +213,7 @@ void ToolPathDisplay::updatePoints()
 
   pts_object_->clear();
   pts_object_->estimateVertexCount(poses_.size());
-  pts_object_->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_POINT_LIST);
+  pts_object_->begin(pts_material_->getName(), Ogre::RenderOperation::OT_POINT_LIST);
   for (const OgrePose& pose : poses_)
   {
     pts_object_->position(pose.position);
@@ -202,7 +230,7 @@ void ToolPathDisplay::updateLines()
 
   lines_object_->clear();
   lines_object_->estimateIndexCount(poses_.size());
-  lines_object_->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_LINE_STRIP);
+  lines_object_->begin(lines_material_->getName(), Ogre::RenderOperation::OT_LINE_STRIP);
 
   for (unsigned i = 0; i < poses_.size(); ++i)
   {
@@ -234,16 +262,39 @@ void ToolPathDisplay::updateAxesGeometry()
 void ToolPathDisplay::updateAxesVisibility()
 {
   axes_node_->setVisible(axes_visibility_property_->getBool());
+  axes_length_property_->setHidden(!axes_visibility_property_->getBool());
+  axes_radius_property_->setHidden(!axes_visibility_property_->getBool());
+  context_->queueRender();
 }
 
 void ToolPathDisplay::updatePtsVisibility()
 {
   pts_object_->setVisible(pts_visibility_property_->getBool());
+  context_->queueRender();
 }
 
 void ToolPathDisplay::updateLinesVisibility()
 {
   lines_object_->setVisible(lines_visibility_property_->getBool());
+  context_->queueRender();
+}
+
+void ToolPathDisplay::updatePtsColor()
+{
+  updateMaterialColor(pts_material_, pts_color_property_->getColor());
+  context_->queueRender();
+}
+
+void ToolPathDisplay::updateLinesColor()
+{
+  updateMaterialColor(lines_material_, lines_color_property_->getColor());
+  context_->queueRender();
+}
+
+void ToolPathDisplay::updatePtsSize()
+{
+  pts_material_->setPointSize(pts_size_property_->getFloat());
+  context_->queueRender();
 }
 
 }  // namespace rviz

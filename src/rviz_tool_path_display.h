@@ -1,3 +1,4 @@
+#include <OgreMaterial.h>
 #include <geometry_msgs/PoseArray.h>
 #include <rviz/message_filter_display.h>
 
@@ -47,20 +48,29 @@ private:
 
   // Points Display
   Ogre::ManualObject* pts_object_;
+  Ogre::MaterialPtr pts_material_;
   BoolProperty* pts_visibility_property_;
+  ColorProperty* pts_color_property_;
+  FloatProperty* pts_size_property_;
 
   // Lines Display
   Ogre::ManualObject* lines_object_;
+  Ogre::MaterialPtr lines_material_;
   BoolProperty* lines_visibility_property_;
+  ColorProperty* lines_color_property_;
 
 private Q_SLOTS:
 
   /// Update the axes geometry.
   void updateAxesGeometry();
-
   void updateAxesVisibility();
+
   void updatePtsVisibility();
+  void updatePtsColor();
+  void updatePtsSize();
+
   void updateLinesVisibility();
+  void updateLinesColor();
 };
 
 }  // namespace rviz
