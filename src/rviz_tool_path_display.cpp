@@ -33,25 +33,14 @@
 #include <OgreSceneNode.h>
 #include <rviz/display_context.h>
 #include <rviz/frame_manager.h>
-#include <rviz/ogre_helpers/arrow.h>
 #include <rviz/ogre_helpers/axes.h>
-#include <rviz/ogre_helpers/line.h>
 #include <rviz/properties/color_property.h>
-#include <rviz/properties/enum_property.h>
 #include <rviz/properties/float_property.h>
 #include <rviz/validate_floats.h>
 #include <rviz/validate_quaternions.h>
 
 namespace
 {
-struct ShapeType
-{
-  enum
-  {
-    Axes,
-  };
-};
-
 Ogre::Vector3 vectorRosToOgre(geometry_msgs::Point const& point)
 {
   return Ogre::Vector3(point.x, point.y, point.z);
@@ -69,26 +58,41 @@ namespace rviz
 {
 ToolPathDisplay::ToolPathDisplay()
 {
-  shape_property_ = new EnumProperty("Shape", "Axes", "Shape to display the pose as.", this, SLOT(updateShapeChoice()));
-
   axes_length_property_ =
       new FloatProperty("Axes Length", 0.3, "Length of each axis, in meters.", this, SLOT(updateAxesGeometry()));
 
   axes_radius_property_ =
       new FloatProperty("Axes Radius", 0.01, "Radius of each axis, in meters.", this, SLOT(updateAxesGeometry()));
 
-  shape_property_->addOption("Axes", ShapeType::Axes);
+  axes_visibility_property_ = new BoolProperty("Show Axes", true, "Toggles the visibility of the axes display", this,
+                                               SLOT(updateAxesVisibility()));
+  pts_visibility_property_ = new BoolProperty("Show Points", true, "Toggles the visibility of the points display", this,
+                                              SLOT(updatePtsVisibility()));
+  lines_visibility_property_ = new BoolProperty("Show Lines", true, "Toggles the visibiltiy of the lines display", this,
+                                                SLOT(updateLinesVisibility()));
 }
 
 ToolPathDisplay::~ToolPathDisplay()
 {
+  if (initialized())
+  {
+    scene_manager_->destroyManualObject(pts_object_);
+    scene_manager_->destroyManualObject(lines_object_);
+  }
 }
 
 void ToolPathDisplay::onInitialize()
 {
   MFDClass::onInitialize();
   axes_node_ = scene_node_->createChildSceneNode();
-  updateShapeChoice();
+
+  pts_object_ = scene_manager_->createManualObject();
+  scene_node_->attachObject(pts_object_);
+
+  lines_object_ = scene_manager_->createManualObject();
+  scene_node_->attachObject(lines_object_);
+
+  updateDisplay();
 }
 
 bool validateFloats(const geometry_msgs::PoseArray& msg)
@@ -149,13 +153,9 @@ bool ToolPathDisplay::setTransform(std_msgs::Header const& header)
 
 void ToolPathDisplay::updateDisplay()
 {
-  int shape = shape_property_->getOptionInt();
-  switch (shape)
-  {
-    case ShapeType::Axes:
-      updateAxes();
-      break;
-  }
+  updateAxes();
+  updatePoints();
+  updateLines();
 }
 
 void ToolPathDisplay::updateAxes()
@@ -169,6 +169,8 @@ void ToolPathDisplay::updateAxes()
     axes_[i].setPosition(poses_[i].position);
     axes_[i].setOrientation(poses_[i].orientation);
   }
+
+  axes_node_->setVisible(axes_visibility_property_->getBool());
 }
 
 Axes* ToolPathDisplay::makeAxes()
@@ -176,22 +178,48 @@ Axes* ToolPathDisplay::makeAxes()
   return new Axes(scene_manager_, axes_node_, axes_length_property_->getFloat(), axes_radius_property_->getFloat());
 }
 
+void ToolPathDisplay::updatePoints()
+{
+  if (poses_.empty())
+    return;
+
+  pts_object_->clear();
+  pts_object_->estimateVertexCount(poses_.size());
+  pts_object_->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_POINT_LIST);
+  for (const OgrePose& pose : poses_)
+  {
+    pts_object_->position(pose.position);
+  }
+  pts_object_->end();
+
+  pts_object_->setVisible(pts_visibility_property_->getBool());
+}
+
+void ToolPathDisplay::updateLines()
+{
+  if (poses_.empty())
+    return;
+
+  lines_object_->clear();
+  lines_object_->estimateIndexCount(poses_.size());
+  lines_object_->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_LINE_STRIP);
+
+  for (unsigned i = 0; i < poses_.size(); ++i)
+  {
+    lines_object_->position(poses_[i].position);
+    lines_object_->index(i);
+  }
+  lines_object_->end();
+
+  lines_object_->setVisible(lines_visibility_property_->getBool());
+}
+
 void ToolPathDisplay::reset()
 {
   MFDClass::reset();
   axes_.clear();
-}
-
-void ToolPathDisplay::updateShapeChoice()
-{
-  int shape = shape_property_->getOptionInt();
-  bool use_axes = shape == ShapeType::Axes;
-
-  axes_length_property_->setHidden(!use_axes);
-  axes_radius_property_->setHidden(!use_axes);
-
-  if (initialized())
-    updateDisplay();
+  pts_object_->clear();
+  lines_object_->clear();
 }
 
 void ToolPathDisplay::updateAxesGeometry()
@@ -201,6 +229,21 @@ void ToolPathDisplay::updateAxesGeometry()
     axes_[i].set(axes_length_property_->getFloat(), axes_radius_property_->getFloat());
   }
   context_->queueRender();
+}
+
+void ToolPathDisplay::updateAxesVisibility()
+{
+  axes_node_->setVisible(axes_visibility_property_->getBool());
+}
+
+void ToolPathDisplay::updatePtsVisibility()
+{
+  pts_object_->setVisible(pts_visibility_property_->getBool());
+}
+
+void ToolPathDisplay::updateLinesVisibility()
+{
+  lines_object_->setVisible(lines_visibility_property_->getBool());
 }
 
 }  // namespace rviz

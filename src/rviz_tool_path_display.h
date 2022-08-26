@@ -5,7 +5,6 @@
 
 namespace rviz
 {
-class EnumProperty;
 class ColorProperty;
 class FloatProperty;
 class Arrow;
@@ -28,6 +27,8 @@ private:
   void updateAxes();
   void updateDisplay();
   rviz::Axes* makeAxes();
+  void updatePoints();
+  void updateLines();
 
   struct OgrePose
   {
@@ -37,20 +38,29 @@ private:
 
   std::vector<OgrePose> poses_;
 
-  rviz::EnumProperty* shape_property_;
-
   // Axes Display
   boost::ptr_vector<rviz::Axes> axes_;
   Ogre::SceneNode* axes_node_;
   rviz::FloatProperty* axes_length_property_;
   rviz::FloatProperty* axes_radius_property_;
+  BoolProperty* axes_visibility_property_;
+
+  // Points Display
+  Ogre::ManualObject* pts_object_;
+  BoolProperty* pts_visibility_property_;
+
+  // Lines Display
+  Ogre::ManualObject* lines_object_;
+  BoolProperty* lines_visibility_property_;
 
 private Q_SLOTS:
-  /// Update the interface and visible shapes based on the selected shape type.
-  void updateShapeChoice();
 
   /// Update the axes geometry.
   void updateAxesGeometry();
+
+  void updateAxesVisibility();
+  void updatePtsVisibility();
+  void updateLinesVisibility();
 };
 
 }  // namespace rviz
