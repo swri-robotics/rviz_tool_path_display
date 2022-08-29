@@ -39,6 +39,8 @@
 #include <rviz/validate_floats.h>
 #include <rviz/validate_quaternions.h>
 
+#include <chrono>
+
 namespace
 {
 Ogre::Vector3 vectorRosToOgre(geometry_msgs::Point const& point)
@@ -69,24 +71,23 @@ namespace rviz
 {
 ToolPathDisplay::ToolPathDisplay()
 {
+  axes_visibility_property_ = new BoolProperty("Show Axes", true, "Toggles the visibility of the axes display", this,
+                                               SLOT(updateAxesVisibility()));
   axes_length_property_ =
       new FloatProperty("Axes Length", 0.3, "Length of each axis, in meters.", this, SLOT(updateAxesGeometry()));
-
   axes_radius_property_ =
       new FloatProperty("Axes Radius", 0.01, "Radius of each axis, in meters.", this, SLOT(updateAxesGeometry()));
 
-  axes_visibility_property_ = new BoolProperty("Show Axes", true, "Toggles the visibility of the axes display", this,
-                                               SLOT(updateAxesVisibility()));
   pts_visibility_property_ = new BoolProperty("Show Points", true, "Toggles the visibility of the points display", this,
                                               SLOT(updatePtsVisibility()));
-  lines_visibility_property_ = new BoolProperty("Show Lines", true, "Toggles the visibiltiy of the lines display", this,
-                                                SLOT(updateLinesVisibility()));
 
   pts_color_property_ = new ColorProperty("Points Color", QColor(255, 255, 255), "The color of the points display",
                                           this, SLOT(updatePtsColor()));
   pts_size_property_ =
       new FloatProperty("Points Size", 5.0, "The size of the points (pixels)", this, SLOT(updatePtsSize()));
 
+  lines_visibility_property_ = new BoolProperty("Show Lines", true, "Toggles the visibility of the lines display", this,
+                                                SLOT(updateLinesVisibility()));
   lines_color_property_ = new ColorProperty("Lines Color", QColor(255, 255, 255), "The color of the lines display",
                                             this, SLOT(updateLinesColor()));
 }
@@ -105,17 +106,34 @@ ToolPathDisplay::~ToolPathDisplay()
 void ToolPathDisplay::onInitialize()
 {
   MFDClass::onInitialize();
+
+  // Create a unique name for the materials based on the current clock time
+  auto now = std::chrono::system_clock::now().time_since_epoch();
+  const int now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+  const std::string suffix = "_" + std::to_string(now_ms);
+
+  // Axes
   axes_node_ = scene_node_->createChildSceneNode();
 
-  pts_object_ = scene_manager_->createManualObject();
-  scene_node_->attachObject(pts_object_);
-  pts_material_ = Ogre::MaterialManager::getSingleton().create("tool_path_pts_material",
-                                                               Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+  // Points
+  {
+    pts_object_ = scene_manager_->createManualObject();
+    scene_node_->attachObject(pts_object_);
 
-  lines_object_ = scene_manager_->createManualObject();
-  scene_node_->attachObject(lines_object_);
-  lines_material_ = Ogre::MaterialManager::getSingleton().create(
-      "tool_path_lines_material", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+    // Make a material with unique name for the points
+    pts_material_ = Ogre::MaterialManager::getSingleton().create(
+        "tool_path_pts_material" + suffix, Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+  }
+
+  // Lines
+  {
+    lines_object_ = scene_manager_->createManualObject();
+    scene_node_->attachObject(lines_object_);
+
+    // Make a material with unique name for the lines
+    lines_material_ = Ogre::MaterialManager::getSingleton().create(
+        "tool_path_lines_material" + suffix, Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+  }
 
   updateDisplay();
   updatePtsSize();
@@ -261,21 +279,27 @@ void ToolPathDisplay::updateAxesGeometry()
 
 void ToolPathDisplay::updateAxesVisibility()
 {
-  axes_node_->setVisible(axes_visibility_property_->getBool());
-  axes_length_property_->setHidden(!axes_visibility_property_->getBool());
-  axes_radius_property_->setHidden(!axes_visibility_property_->getBool());
+  const bool axes_visible = axes_visibility_property_->getBool();
+  axes_node_->setVisible(axes_visible);
+  axes_length_property_->setHidden(!axes_visible);
+  axes_radius_property_->setHidden(!axes_visible);
   context_->queueRender();
 }
 
 void ToolPathDisplay::updatePtsVisibility()
 {
-  pts_object_->setVisible(pts_visibility_property_->getBool());
+  const bool pts_visible = pts_visibility_property_->getBool();
+  pts_object_->setVisible(pts_visible);
+  pts_size_property_->setHidden(!pts_visible);
+  pts_color_property_->setHidden(!pts_visible);
   context_->queueRender();
 }
 
 void ToolPathDisplay::updateLinesVisibility()
 {
-  lines_object_->setVisible(lines_visibility_property_->getBool());
+  const bool lines_visible = lines_visibility_property_->getBool();
+  lines_object_->setVisible(lines_visible);
+  lines_color_property_->setHidden(!lines_visible);
   context_->queueRender();
 }
 

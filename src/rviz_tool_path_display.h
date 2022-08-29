@@ -8,7 +8,6 @@ namespace rviz
 {
 class ColorProperty;
 class FloatProperty;
-class Arrow;
 class Axes;
 
 class ToolPathDisplay : public rviz::MessageFilterDisplay<geometry_msgs::PoseArray>
@@ -60,8 +59,6 @@ private:
   ColorProperty* lines_color_property_;
 
 private Q_SLOTS:
-
-  /// Update the axes geometry.
   void updateAxesGeometry();
   void updateAxesVisibility();
 
