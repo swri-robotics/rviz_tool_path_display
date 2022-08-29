@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  industrial_ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - {CI_NAME: xenial,
+             OS_NAME: ubuntu,
+             OS_CODE_NAME: xenial,
+             ROS_DISTRO: kinetic,
+             ROS_REPO: main,
+             DOCKER_IMAGE: "ros:kinetic"}
+          - {CI_NAME: bionic,
+             OS_NAME: ubuntu,
+             OS_CODE_NAME: bionic,
+             ROS_DISTRO: melodic,
+             ROS_REPO: main,
+             DOCKER_IMAGE: "ros:melodic"}
+          - {CI_NAME: focal,
+             OS_NAME: ubuntu,
+             OS_CODE_NAME: focal,
+             ROS_DISTRO: noetic,
+             ROS_REPO: main,
+             DOCKER_IMAGE: "ros:noetic"}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: 'ros-industrial/industrial_ci@master'
+        env: ${{matrix.env}}
