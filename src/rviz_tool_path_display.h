@@ -9,6 +9,7 @@ namespace rviz
 class ColorProperty;
 class FloatProperty;
 class Axes;
+class MovableText;
 
 class ToolPathDisplay : public rviz::MessageFilterDisplay<geometry_msgs::PoseArray>
 {
@@ -29,6 +30,7 @@ private:
   rviz::Axes* makeAxes();
   void updatePoints();
   void updateLines();
+  void updateText();
 
   struct OgrePose
   {
@@ -58,6 +60,14 @@ private:
   BoolProperty* lines_visibility_property_;
   ColorProperty* lines_color_property_;
 
+  // Text
+  Ogre::SceneNode* start_text_node_;
+  MovableText* start_text_;
+  Ogre::SceneNode* end_text_node_;
+  MovableText* end_text_;
+  BoolProperty* text_visibility_property_;
+  FloatProperty* text_size_property_;
+
 private Q_SLOTS:
   void updateAxesGeometry();
   void updateAxesVisibility();
@@ -68,6 +78,9 @@ private Q_SLOTS:
 
   void updateLinesVisibility();
   void updateLinesColor();
+
+  void updateTextVisibility();
+  void updateTextSize();
 };
 
 }  // namespace rviz

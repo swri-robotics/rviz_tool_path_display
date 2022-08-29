@@ -34,6 +34,7 @@
 #include <rviz/display_context.h>
 #include <rviz/frame_manager.h>
 #include <rviz/ogre_helpers/axes.h>
+#include <rviz/ogre_helpers/movable_text.h>
 #include <rviz/properties/color_property.h>
 #include <rviz/properties/float_property.h>
 #include <rviz/validate_floats.h>
@@ -90,6 +91,11 @@ ToolPathDisplay::ToolPathDisplay()
                                                 SLOT(updateLinesVisibility()));
   lines_color_property_ = new ColorProperty("Lines Color", QColor(255, 255, 255), "The color of the lines display",
                                             this, SLOT(updateLinesColor()));
+
+  text_visibility_property_ = new BoolProperty("Show Text", true, "Toggles the visibility of the text display", this,
+                                               SLOT(updateTextVisibility()));
+  text_size_property_ =
+      new FloatProperty("Text Size", 0.1f, "Height of the text display (m)", this, SLOT(updateTextSize()));
 }
 
 ToolPathDisplay::~ToolPathDisplay()
@@ -135,10 +141,25 @@ void ToolPathDisplay::onInitialize()
         "tool_path_lines_material" + suffix, Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
   }
 
+  // Start/End text
+  {
+    start_text_node_ = scene_node_->createChildSceneNode();
+    start_text_ = new MovableText("0", "Liberation Sans");
+    start_text_->setTextAlignment(MovableText::H_CENTER, MovableText::V_BELOW);
+    start_text_node_->attachObject(start_text_);
+
+    end_text_node_ = scene_node_->createChildSceneNode();
+    end_text_ = new MovableText("0", "Liberation Sans");
+    end_text_->setTextAlignment(MovableText::H_CENTER, MovableText::V_BELOW);
+    end_text_node_->attachObject(end_text_);
+  }
+
   updateDisplay();
   updatePtsSize();
   updatePtsColor();
   updateLinesColor();
+  updateText();
+  updateTextSize();
 }
 
 bool validateFloats(const geometry_msgs::PoseArray& msg)
@@ -202,6 +223,7 @@ void ToolPathDisplay::updateDisplay()
   updateAxes();
   updatePoints();
   updateLines();
+  updateText();
 }
 
 void ToolPathDisplay::updateAxes()
@@ -258,6 +280,22 @@ void ToolPathDisplay::updateLines()
   lines_object_->end();
 
   lines_object_->setVisible(lines_visibility_property_->getBool());
+}
+
+void ToolPathDisplay::updateText()
+{
+  const bool show = poses_.size() > 1;
+  start_text_node_->setVisible(show);
+  end_text_node_->setVisible(show);
+  if (show)
+  {
+    // Update the caption of the end text
+    end_text_->setCaption(std::to_string(poses_.size() - 1));
+
+    // Set the position of the text nodes
+    start_text_node_->setPosition(poses_.front().position);
+    end_text_node_->setPosition(poses_.back().position);
+  }
 }
 
 void ToolPathDisplay::reset()
@@ -319,6 +357,21 @@ void ToolPathDisplay::updatePtsSize()
 {
   pts_material_->setPointSize(pts_size_property_->getFloat());
   context_->queueRender();
+}
+
+void ToolPathDisplay::updateTextVisibility()
+{
+  const bool text_visible = text_visibility_property_->getBool();
+  start_text_node_->setVisible(text_visible);
+  end_text_node_->setVisible(text_visible);
+  text_size_property_->setHidden(!text_visible);
+}
+
+void ToolPathDisplay::updateTextSize()
+{
+  const float height = text_size_property_->getFloat();
+  start_text_->setCharacterHeight(height);
+  end_text_->setCharacterHeight(height);
 }
 
 }  // namespace rviz
