@@ -10,6 +10,7 @@ class ColorProperty;
 class FloatProperty;
 class Axes;
 class MovableText;
+class BillboardLine;
 
 class ToolPathDisplay : public rviz::MessageFilterDisplay<geometry_msgs::PoseArray>
 {
@@ -55,8 +56,9 @@ private:
   FloatProperty* pts_size_property_;
 
   // Lines Display
-  Ogre::ManualObject* lines_object_;
-  Ogre::MaterialPtr lines_material_;
+  BillboardLine* lines_object_;
+  //  Ogre::ManualObject* lines_object_;
+  //  Ogre::MaterialPtr lines_material_;
   BoolProperty* lines_visibility_property_;
   ColorProperty* lines_color_property_;
 

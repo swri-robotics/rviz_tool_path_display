@@ -34,6 +34,7 @@
 #include <rviz/display_context.h>
 #include <rviz/frame_manager.h>
 #include <rviz/ogre_helpers/axes.h>
+#include <rviz/ogre_helpers/billboard_line.h>
 #include <rviz/ogre_helpers/movable_text.h>
 #include <rviz/properties/color_property.h>
 #include <rviz/properties/float_property.h>
@@ -103,9 +104,9 @@ ToolPathDisplay::~ToolPathDisplay()
   if (initialized())
   {
     scene_manager_->destroyManualObject(pts_object_);
-    scene_manager_->destroyManualObject(lines_object_);
+    //    scene_manager_->destroyManualObject(lines_object_);
     Ogre::MaterialManager::getSingleton().remove(pts_material_->getName());
-    Ogre::MaterialManager::getSingleton().remove(lines_material_->getName());
+    //    Ogre::MaterialManager::getSingleton().remove(lines_material_->getName());
   }
 }
 
@@ -133,12 +134,15 @@ void ToolPathDisplay::onInitialize()
 
   // Lines
   {
-    lines_object_ = scene_manager_->createManualObject();
-    scene_node_->attachObject(lines_object_);
+    lines_object_ = new BillboardLine(scene_manager_, scene_node_);
+    lines_object_->setLineWidth(0.010);
+
+    //    lines_object_ = scene_manager_->createManualObject();
+    //    scene_node_->attachObject(lines_object_);
 
     // Make a material with unique name for the lines
-    lines_material_ = Ogre::MaterialManager::getSingleton().create(
-        "tool_path_lines_material" + suffix, Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+    //    lines_material_ = Ogre::MaterialManager::getSingleton().create(
+    //        "tool_path_lines_material" + suffix, Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
   }
 
   // Start/End text
@@ -269,17 +273,19 @@ void ToolPathDisplay::updateLines()
     return;
 
   lines_object_->clear();
-  lines_object_->estimateIndexCount(poses_.size());
-  lines_object_->begin(lines_material_->getName(), Ogre::RenderOperation::OT_LINE_STRIP);
+
+  //  lines_object_->estimateIndexCount(poses_.size());
+  //  lines_object_->begin(lines_material_->getName(), Ogre::RenderOperation::OT_LINE_STRIP);
 
   for (unsigned i = 0; i < poses_.size(); ++i)
   {
-    lines_object_->position(poses_[i].position);
-    lines_object_->index(i);
+    lines_object_->addPoint(poses_[i].position);
+    //    lines_object_->position(poses_[i].position);
+    //    lines_object_->index(i);
   }
-  lines_object_->end();
+  //  lines_object_->end();
 
-  lines_object_->setVisible(lines_visibility_property_->getBool());
+  //  lines_object_->setVisible(lines_visibility_property_->getBool());
 }
 
 void ToolPathDisplay::updateText()
@@ -336,7 +342,7 @@ void ToolPathDisplay::updatePtsVisibility()
 void ToolPathDisplay::updateLinesVisibility()
 {
   const bool lines_visible = lines_visibility_property_->getBool();
-  lines_object_->setVisible(lines_visible);
+  //  lines_object_->setVisible(lines_visible);
   lines_color_property_->setHidden(!lines_visible);
   context_->queueRender();
 }
@@ -349,7 +355,10 @@ void ToolPathDisplay::updatePtsColor()
 
 void ToolPathDisplay::updateLinesColor()
 {
-  updateMaterialColor(lines_material_, lines_color_property_->getColor());
+  updateMaterialColor(lines_object_->getMaterial(), lines_color_property_->getColor());
+  auto color = lines_color_property_->getOgreColor();
+  lines_object_->setColor(color.r, color.g, color.b, color.a);
+  //  updateMaterialColor(lines_material_, lines_color_property_->getColor());
   context_->queueRender();
 }
 
@@ -372,6 +381,8 @@ void ToolPathDisplay::updateTextSize()
   const float height = text_size_property_->getFloat();
   start_text_->setCharacterHeight(height);
   end_text_->setCharacterHeight(height);
+
+  lines_object_->setLineWidth(text_size_property_->getFloat());
 }
 
 }  // namespace rviz
