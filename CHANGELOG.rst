@@ -2,8 +2,8 @@
 Changelog for package rviz_tool_path_display
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.0 (2022-08-29)
+------------------
 * Merge pull request `#1 <https://github.com/marip8/rviz_tool_path_display/issues/1>`_ from marip8/feature/rviz-tool-path-display
   Tool Path Display
 * Added icon
