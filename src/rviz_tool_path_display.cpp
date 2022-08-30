@@ -44,12 +44,12 @@
 
 namespace
 {
-Ogre::Vector3 toMsg(geometry_msgs::Point const& point)
+Ogre::Vector3 fromMsg(geometry_msgs::Point const& point)
 {
   return Ogre::Vector3(point.x, point.y, point.z);
 }
 
-Ogre::Quaternion toMsg(geometry_msgs::Quaternion const& quaternion)
+Ogre::Quaternion fromMsg(geometry_msgs::Quaternion const& quaternion)
 {
   Ogre::Quaternion q;
   rviz::normalizeQuaternion(quaternion, q);
@@ -195,8 +195,8 @@ void ToolPathDisplay::processMessage(const geometry_msgs::PoseArray::ConstPtr& m
   poses_.resize(msg->poses.size());
   for (std::size_t i = 0; i < msg->poses.size(); ++i)
   {
-    poses_[i].position = toMsg(msg->poses[i].position);
-    poses_[i].orientation = toMsg(msg->poses[i].orientation);
+    poses_[i].position = fromMsg(msg->poses[i].position);
+    poses_[i].orientation = fromMsg(msg->poses[i].orientation);
   }
 
   updateDisplay();
