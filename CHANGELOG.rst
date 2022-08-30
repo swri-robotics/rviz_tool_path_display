@@ -2,8 +2,8 @@
 Changelog for package rviz_tool_path_display
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.1 (2022-08-30)
+------------------
 * Merge pull request `#2 <https://github.com/marip8/rviz_tool_path_display/issues/2>`_ from marip8/updates
   Renamed helper functions
 * Renamed helper functions
