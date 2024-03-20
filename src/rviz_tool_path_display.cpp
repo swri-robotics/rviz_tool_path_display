@@ -28,31 +28,28 @@
  */
 #include "rviz_tool_path_display.h"
 
+#include <rclcpp/rclcpp.hpp>
+#include <chrono>
+#include <geometry_msgs/msg/quaternion.hpp>
 #include <OgreManualObject.h>
 #include <OgreSceneManager.h>
 #include <OgreSceneNode.h>
-#include <rviz/display_context.h>
-#include <rviz/frame_manager.h>
-#include <rviz/ogre_helpers/axes.h>
-#include <rviz/ogre_helpers/movable_text.h>
-#include <rviz/properties/color_property.h>
-#include <rviz/properties/float_property.h>
-#include <rviz/validate_floats.h>
-#include <rviz/validate_quaternions.h>
-
-#include <chrono>
+#include <rviz_common/display_context.hpp>
+#include <rviz_common/frame_manager_iface.hpp>
+#include <rviz_common/properties/status_property.hpp>
+#include <rviz_common/validate_floats.hpp>
 
 namespace
 {
-Ogre::Vector3 fromMsg(geometry_msgs::Point const& point)
+Ogre::Vector3 fromMsg(geometry_msgs::msg::Point const& point)
 {
   return Ogre::Vector3(point.x, point.y, point.z);
 }
 
-Ogre::Quaternion fromMsg(geometry_msgs::Quaternion const& quaternion)
+Ogre::Quaternion fromMsg(geometry_msgs::msg::Quaternion const& quaternion)
 {
   Ogre::Quaternion q;
-  rviz::normalizeQuaternion(quaternion, q);
+  q.normalise();
   return q;
 }
 
@@ -68,34 +65,33 @@ void updateMaterialColor(Ogre::MaterialPtr material, const QColor& color, const 
 }
 }  // namespace
 
-namespace rviz
+namespace rviz_common
 {
 ToolPathDisplay::ToolPathDisplay()
 {
   axes_visibility_property_ = new BoolProperty("Show Axes", true, "Toggles the visibility of the axes display", this,
                                                SLOT(updateAxesVisibility()));
   axes_length_property_ =
-      new FloatProperty("Axes Length", 0.3, "Length of each axis, in meters.", this, SLOT(updateAxesGeometry()));
+      new properties::FloatProperty("Axes Length", 0.3, "Length of each axis, in meters.", this, SLOT(updateAxesGeometry()));
   axes_radius_property_ =
-      new FloatProperty("Axes Radius", 0.01, "Radius of each axis, in meters.", this, SLOT(updateAxesGeometry()));
+      new properties::FloatProperty("Axes Radius", 0.01, "Radius of each axis, in meters.", this, SLOT(updateAxesGeometry()));
 
   pts_visibility_property_ = new BoolProperty("Show Points", true, "Toggles the visibility of the points display", this,
                                               SLOT(updatePtsVisibility()));
 
-  pts_color_property_ = new ColorProperty("Points Color", QColor(255, 255, 255), "The color of the points display",
+  pts_color_property_ = new properties::ColorProperty("Points Color", QColor(255, 255, 255), "The color of the points display",
                                           this, SLOT(updatePtsColor()));
   pts_size_property_ =
-      new FloatProperty("Points Size", 5.0, "The size of the points (pixels)", this, SLOT(updatePtsSize()));
+      new properties::FloatProperty("Points Size", 5.0, "The size of the points (pixels)", this, SLOT(updatePtsSize()));
 
   lines_visibility_property_ = new BoolProperty("Show Lines", true, "Toggles the visibility of the lines display", this,
                                                 SLOT(updateLinesVisibility()));
-  lines_color_property_ = new ColorProperty("Lines Color", QColor(255, 255, 255), "The color of the lines display",
+  lines_color_property_ = new properties::ColorProperty("Lines Color", QColor(255, 255, 255), "The color of the lines display",
                                             this, SLOT(updateLinesColor()));
 
   text_visibility_property_ = new BoolProperty("Show Text", true, "Toggles the visibility of the text display", this,
                                                SLOT(updateTextVisibility()));
-  text_size_property_ =
-      new FloatProperty("Text Size", 0.1f, "Height of the text display (m)", this, SLOT(updateTextSize()));
+  text_size_property_ =new properties::FloatProperty("Text Size", 0.1f, "Height of the text display (m)", this, SLOT(updateTextSize()));
 }
 
 ToolPathDisplay::~ToolPathDisplay()
@@ -144,13 +140,13 @@ void ToolPathDisplay::onInitialize()
   // Start/End text
   {
     start_text_node_ = scene_node_->createChildSceneNode();
-    start_text_ = new MovableText("0", "Liberation Sans");
-    start_text_->setTextAlignment(MovableText::H_CENTER, MovableText::V_BELOW);
+    start_text_ = new rviz_rendering::MovableText("0", "Liberation Sans");
+    start_text_->setTextAlignment(rviz_rendering::MovableText::H_CENTER, rviz_rendering::MovableText::V_BELOW);
     start_text_node_->attachObject(start_text_);
 
     end_text_node_ = scene_node_->createChildSceneNode();
-    end_text_ = new MovableText("0", "Liberation Sans");
-    end_text_->setTextAlignment(MovableText::H_CENTER, MovableText::V_BELOW);
+    end_text_ = new rviz_rendering::MovableText("0", "Liberation Sans");
+    end_text_->setTextAlignment(rviz_rendering::MovableText::H_CENTER, rviz_rendering::MovableText::V_BELOW);
     end_text_node_->attachObject(end_text_);
   }
 
@@ -162,33 +158,57 @@ void ToolPathDisplay::onInitialize()
   updateTextSize();
 }
 
-bool validateFloats(const geometry_msgs::PoseArray& msg)
+bool validateFloats(const geometry_msgs::msg::PoseArray& msg)
 {
   return validateFloats(msg.poses);
 }
 
-void ToolPathDisplay::processMessage(const geometry_msgs::PoseArray::ConstPtr& msg)
+bool validateQuaternions(const geometry_msgs::msg::PoseArray& pose) {
+    for (const auto& pose : pose.poses) {
+        // Extract quaternion components
+        double qw = pose.orientation.w;
+        double qx = pose.orientation.x;
+        double qy = pose.orientation.y;
+        double qz = pose.orientation.z;
+      
+        // Calculate the quaternion norm
+        double norm = std::sqrt(qw*qw + qx*qx + qy*qy + qz*qz);
+
+        // Set a tolerance for normalization
+        const double tolerance = 1e-6;
+
+        // Check if the quaternion is approximately normalized
+        if (std::abs(norm - 1.0) > tolerance) {
+            // Handle invalid quaternion (not normalized)
+            return false;
+        }
+    }
+    return true;
+}
+
+void ToolPathDisplay::processMessage(const std::shared_ptr<const geometry_msgs::msg::PoseArray> msg)
 {
+  auto node = std::make_shared<rclcpp::Node>("processMessage_node");
   if (!validateFloats(*msg))
   {
-    setStatus(StatusProperty::Error, "Topic", "Message contained invalid floating point values (nans or infs)");
+    setStatus(properties::StatusProperty::Error, "Topic", "Message contained invalid floating point values (nans or infs)");
     return;
   }
 
-  if (!validateQuaternions(msg->poses))
+  if (!validateQuaternions(*msg))
   {
-    ROS_WARN_ONCE_NAMED("quaternions",
-                        "PoseArray msg received on topic '%s' contains unnormalized quaternions. "
-                        "This warning will only be output once but may be true for others; "
+    RCLCPP_WARN(node->get_logger(),"quaternions"
+                        "PoseArray msg received on topic '%s' contains unnormalized quaternions." 
+                        "This warning will only be output once but may be true for others;"
                         "enable DEBUG messages for ros.rviz.quaternions to see more details.",
                         topic_property_->getTopicStd().c_str());
-    ROS_DEBUG_NAMED("quaternions", "PoseArray msg received on topic '%s' contains unnormalized quaternions.",
+    RCLCPP_DEBUG(node->get_logger(), "quaternions", "PoseArray msg received on topic '%s' contains unnormalized quaternions.",
                     topic_property_->getTopicStd().c_str());
   }
 
   if (!setTransform(msg->header))
   {
-    setStatus(StatusProperty::Error, "Topic", "Failed to look up transform");
+    setStatus(properties::StatusProperty::Error, "Topic", "Failed to look up transform");
     return;
   }
 
@@ -203,13 +223,14 @@ void ToolPathDisplay::processMessage(const geometry_msgs::PoseArray::ConstPtr& m
   context_->queueRender();
 }
 
-bool ToolPathDisplay::setTransform(std_msgs::Header const& header)
+bool ToolPathDisplay::setTransform(std_msgs::msg::Header const& header)
 {
+  auto node = std::make_shared<rclcpp::Node>("setTransform_node");
   Ogre::Vector3 position;
   Ogre::Quaternion orientation;
   if (!context_->getFrameManager()->getTransform(header, position, orientation))
   {
-    ROS_ERROR("Error transforming pose '%s' from frame '%s' to frame '%s'", qPrintable(getName()),
+    RCLCPP_ERROR(node->get_logger(), "Error transforming pose '%s' from frame '%s' to frame '%s'", qPrintable(getName()),
               header.frame_id.c_str(), qPrintable(fixed_frame_));
     return false;
   }
@@ -241,9 +262,9 @@ void ToolPathDisplay::updateAxes()
   axes_node_->setVisible(axes_visibility_property_->getBool());
 }
 
-Axes* ToolPathDisplay::makeAxes()
+rviz_rendering::Axes* ToolPathDisplay::makeAxes()
 {
-  return new Axes(scene_manager_, axes_node_, axes_length_property_->getFloat(), axes_radius_property_->getFloat());
+  return new rviz_rendering::Axes(scene_manager_, axes_node_, axes_length_property_->getFloat(), axes_radius_property_->getFloat());
 }
 
 void ToolPathDisplay::updatePoints()
@@ -374,7 +395,7 @@ void ToolPathDisplay::updateTextSize()
   end_text_->setCharacterHeight(height);
 }
 
-}  // namespace rviz
+}  // namespace rviz_common
 
 #include <pluginlib/class_list_macros.hpp>
-PLUGINLIB_EXPORT_CLASS(rviz::ToolPathDisplay, rviz::Display)
+PLUGINLIB_EXPORT_CLASS(rviz_common::ToolPathDisplay, rviz_common::MessageFilterDisplay<geometry_msgs::msg::PoseArray>)
