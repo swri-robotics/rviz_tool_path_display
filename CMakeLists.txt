@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
+find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets Test Concurrent)
 find_package(ament_cmake REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
@@ -16,18 +16,41 @@ find_package(rviz_rendering REQUIRED)
 include_directories(include ${Boost_INCLUDE_DIRS})
 
 qt5_wrap_cpp(MOC_FILES src/rviz_tool_path_display.h)
-
 add_library(${PROJECT_NAME} SHARED src/rviz_tool_path_display.cpp ${MOC_FILES})
-ament_target_dependencies(${PROJECT_NAME} geometry_msgs rclcpp rviz_common rviz_rendering)
+
+target_include_directories(${PROJECT_NAME} PUBLIC
+${Qt5Widgets_INCLUDE_DIRS}
+${OGRE_INCLUDE_DIRS}
+)
+
+target_link_libraries(${PROJECT_NAME}
+rviz_common::rviz_common
+)
+
+pluginlib_export_plugin_description_file(rviz_common plugin_description.xml)
+
+ament_target_dependencies(${PROJECT_NAME} Qt5 geometry_msgs rclcpp rviz_common rviz_rendering pluginlib)
+ament_export_include_directories(include)
+ament_export_targets(${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(
+  Qt5
+  rviz_common
+  geometry_msgs
+  rclcpp
+)
 
 install(
   TARGETS ${PROJECT_NAME}
+  EXPORT ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin)
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
 
-install(DIRECTORY icons DESTINATION share/${PROJECT_NAME}/)
+install(DIRECTORY icons DESTINATION include/${PROJECT_NAME}/)
 
 install(FILES plugin_description.xml DESTINATION share/${PROJECT_NAME}/)
+
 
 ament_package()

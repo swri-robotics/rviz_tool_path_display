@@ -1,8 +1,12 @@
 <?xml version="1.0"?>
-<library path="lib/librviz_tool_path_display">
-  <class name="rviz_tool_path_display/ToolPath" type="rviz::ToolPathDisplay" base_class_type="rviz::Display">
+<library path="rviz_tool_path_display">
+  <class 
+    name="rviz_tool_path_display/ToolPath" 
+    type="rviz_common::ToolPathDisplay" 
+    base_class_type="rviz_common::Display">
     <description>
       Rviz display for visualizing tool paths
     </description>
+    <message_type>geometry_msgs/msg/PoseArray</message_type>
   </class>
 </library>

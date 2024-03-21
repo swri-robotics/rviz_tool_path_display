@@ -32,12 +32,16 @@
 #include <chrono>
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <OgreManualObject.h>
+#include <OgreMaterialManager.h>
 #include <OgreSceneManager.h>
 #include <OgreSceneNode.h>
 #include <rviz_common/display_context.hpp>
 #include <rviz_common/frame_manager_iface.hpp>
 #include <rviz_common/properties/status_property.hpp>
 #include <rviz_common/validate_floats.hpp>
+#include <rviz_common/display.hpp>
+#include <rviz_common/panel.hpp>
+#include <rviz_rendering/objects/axes.hpp>
 
 namespace
 {
@@ -69,29 +73,29 @@ namespace rviz_common
 {
 ToolPathDisplay::ToolPathDisplay()
 {
-  axes_visibility_property_ = new BoolProperty("Show Axes", true, "Toggles the visibility of the axes display", this,
+  axes_visibility_property_ = new rviz_common::properties::BoolProperty("Show Axes", true, "Toggles the visibility of the axes display", this,
                                                SLOT(updateAxesVisibility()));
   axes_length_property_ =
-      new properties::FloatProperty("Axes Length", 0.3, "Length of each axis, in meters.", this, SLOT(updateAxesGeometry()));
+      new rviz_common::properties::FloatProperty("Axes Length", 0.3, "Length of each axis, in meters.", this, SLOT(updateAxesGeometry()));
   axes_radius_property_ =
-      new properties::FloatProperty("Axes Radius", 0.01, "Radius of each axis, in meters.", this, SLOT(updateAxesGeometry()));
+      new rviz_common::properties::FloatProperty("Axes Radius", 0.01, "Radius of each axis, in meters.", this, SLOT(updateAxesGeometry()));
 
-  pts_visibility_property_ = new BoolProperty("Show Points", true, "Toggles the visibility of the points display", this,
+  pts_visibility_property_ = new rviz_common::properties::BoolProperty("Show Points", true, "Toggles the visibility of the points display", this,
                                               SLOT(updatePtsVisibility()));
 
-  pts_color_property_ = new properties::ColorProperty("Points Color", QColor(255, 255, 255), "The color of the points display",
+  pts_color_property_ = new rviz_common::properties::ColorProperty("Points Color", QColor(255, 255, 255), "The color of the points display",
                                           this, SLOT(updatePtsColor()));
   pts_size_property_ =
-      new properties::FloatProperty("Points Size", 5.0, "The size of the points (pixels)", this, SLOT(updatePtsSize()));
+      new rviz_common::properties::FloatProperty("Points Size", 5.0, "The size of the points (pixels)", this, SLOT(updatePtsSize()));
 
-  lines_visibility_property_ = new BoolProperty("Show Lines", true, "Toggles the visibility of the lines display", this,
+  lines_visibility_property_ = new rviz_common::properties::BoolProperty("Show Lines", true, "Toggles the visibility of the lines display", this,
                                                 SLOT(updateLinesVisibility()));
-  lines_color_property_ = new properties::ColorProperty("Lines Color", QColor(255, 255, 255), "The color of the lines display",
+  lines_color_property_ = new rviz_common::properties::ColorProperty("Lines Color", QColor(255, 255, 255), "The color of the lines display",
                                             this, SLOT(updateLinesColor()));
 
-  text_visibility_property_ = new BoolProperty("Show Text", true, "Toggles the visibility of the text display", this,
+  text_visibility_property_ = new rviz_common::properties::BoolProperty("Show Text", true, "Toggles the visibility of the text display", this,
                                                SLOT(updateTextVisibility()));
-  text_size_property_ =new properties::FloatProperty("Text Size", 0.1f, "Height of the text display (m)", this, SLOT(updateTextSize()));
+  text_size_property_ =new rviz_common::properties::FloatProperty("Text Size", 0.1f, "Height of the text display (m)", this, SLOT(updateTextSize()));
 }
 
 ToolPathDisplay::~ToolPathDisplay()
@@ -158,12 +162,12 @@ void ToolPathDisplay::onInitialize()
   updateTextSize();
 }
 
-bool validateFloats(const geometry_msgs::msg::PoseArray& msg)
+bool ToolPathDisplay::validateFloats(const geometry_msgs::msg::PoseArray& msg)
 {
-  return validateFloats(msg.poses);
+  return rviz_common::validateFloats(msg.poses);
 }
 
-bool validateQuaternions(const geometry_msgs::msg::PoseArray& pose) {
+bool ToolPathDisplay::validateQuaternions(const geometry_msgs::msg::PoseArray& pose) {
     for (const auto& pose : pose.poses) {
         // Extract quaternion components
         double qw = pose.orientation.w;
@@ -186,12 +190,12 @@ bool validateQuaternions(const geometry_msgs::msg::PoseArray& pose) {
     return true;
 }
 
-void ToolPathDisplay::processMessage(const std::shared_ptr<const geometry_msgs::msg::PoseArray> msg)
+void ToolPathDisplay::processMessage(const geometry_msgs::msg::PoseArray::ConstSharedPtr msg)
 {
   auto node = std::make_shared<rclcpp::Node>("processMessage_node");
   if (!validateFloats(*msg))
   {
-    setStatus(properties::StatusProperty::Error, "Topic", "Message contained invalid floating point values (nans or infs)");
+    setStatus(rviz_common::properties::StatusProperty::Error, "Topic", "Message contained invalid floating point values (nans or infs)");
     return;
   }
 
@@ -208,7 +212,7 @@ void ToolPathDisplay::processMessage(const std::shared_ptr<const geometry_msgs::
 
   if (!setTransform(msg->header))
   {
-    setStatus(properties::StatusProperty::Error, "Topic", "Failed to look up transform");
+    setStatus(rviz_common::properties::StatusProperty::Error, "Topic", "Failed to look up transform");
     return;
   }
 
@@ -255,16 +259,21 @@ void ToolPathDisplay::updateAxes()
     axes_.pop_back();
   for (std::size_t i = 0; i < poses_.size(); ++i)
   {
-    axes_[i].setPosition(poses_[i].position);
-    axes_[i].setOrientation(poses_[i].orientation);
+    axes_[i]->setPosition(poses_[i].position);
+    axes_[i]->setOrientation(poses_[i].orientation);
   }
 
   axes_node_->setVisible(axes_visibility_property_->getBool());
 }
 
-rviz_rendering::Axes* ToolPathDisplay::makeAxes()
+std::unique_ptr<rviz_rendering::Axes> ToolPathDisplay::makeAxes()
 {
-  return new rviz_rendering::Axes(scene_manager_, axes_node_, axes_length_property_->getFloat(), axes_radius_property_->getFloat());
+  return std::make_unique<rviz_rendering::Axes>(
+    scene_manager_,
+    axes_node_,
+    axes_length_property_->getFloat(),
+    axes_radius_property_->getFloat()
+  );
 }
 
 void ToolPathDisplay::updatePoints()
@@ -331,7 +340,7 @@ void ToolPathDisplay::updateAxesGeometry()
 {
   for (std::size_t i = 0; i < poses_.size(); ++i)
   {
-    axes_[i].set(axes_length_property_->getFloat(), axes_radius_property_->getFloat());
+    axes_[i]->set(axes_length_property_->getFloat(), axes_radius_property_->getFloat());
   }
   context_->queueRender();
 }
@@ -398,4 +407,4 @@ void ToolPathDisplay::updateTextSize()
 }  // namespace rviz_common
 
 #include <pluginlib/class_list_macros.hpp>
-PLUGINLIB_EXPORT_CLASS(rviz_common::ToolPathDisplay, rviz_common::MessageFilterDisplay<geometry_msgs::msg::PoseArray>)
+PLUGINLIB_EXPORT_CLASS(rviz_common::ToolPathDisplay, rviz_common::Display)
