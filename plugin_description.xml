@@ -1,4 +1,3 @@
-<?xml version="1.0"?>
 <library path="rviz_tool_path_display">
   <class 
     name="rviz_tool_path_display/ToolPath" 
