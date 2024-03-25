@@ -6,20 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(ament_cmake REQUIRED)
-# find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets Test Concurrent)
 find_package(geometry_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rviz_common REQUIRED)
-# find_package(rviz_rendering REQUIRED)
-
-# include_directories(include ${Boost_INCLUDE_DIRS})
 
 qt5_wrap_cpp(MOC_FILES src/rviz_tool_path_display.h)
 add_library(${PROJECT_NAME} SHARED src/rviz_tool_path_display.cpp ${MOC_FILES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC
-# ${Qt5Widgets_INCLUDE_DIRS}
 ${OGRE_INCLUDE_DIRS}
 )
 

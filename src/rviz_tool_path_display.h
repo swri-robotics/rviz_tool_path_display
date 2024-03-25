@@ -56,7 +56,6 @@ private:
   std::vector<OgrePose> poses_;
 
   // Axes Display
-  // boost::ptr_vector<rviz_rendering::objects::Axes> axes_;
   std::vector<std::unique_ptr<rviz_rendering::Axes>> axes_;
   Ogre::SceneNode* axes_node_;
   properties::FloatProperty* axes_length_property_;
