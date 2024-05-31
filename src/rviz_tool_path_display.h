@@ -1,17 +1,30 @@
-#include <OgreMaterial.h>
-#include <geometry_msgs/PoseArray.h>
-#include <rviz/message_filter_display.h>
-
 #include <boost/ptr_container/ptr_vector.hpp>
+#include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/pose.hpp>
+#include <geometry_msgs/msg/pose_array.hpp>
+#include <rviz_common/properties/bool_property.hpp>
+#include <rviz_common/properties/color_property.hpp>
+#include <rviz_common/properties/float_property.hpp>
+#include <rviz_common/message_filter_display.hpp>
+#include <rviz_rendering/objects/axes.hpp>
+#include <rviz_rendering/objects/movable_text.hpp>
 
-namespace rviz
+namespace rviz_rendering
 {
-class ColorProperty;
-class FloatProperty;
-class Axes;
-class MovableText;
+  class Axes;
+  class MovableText;
+} // namespace rviz_rendering
 
-class ToolPathDisplay : public rviz::MessageFilterDisplay<geometry_msgs::PoseArray>
+namespace rviz_common
+{
+  namespace properties
+  {
+  class ColorProperty;
+  class FloatProperty;
+  class BoolProperty;
+  }
+
+class ToolPathDisplay : public rviz_common::MessageFilterDisplay<geometry_msgs::msg::PoseArray>
 {
   Q_OBJECT
 public:
@@ -21,13 +34,15 @@ public:
 protected:
   void onInitialize() override;
   void reset() override;
-  void processMessage(const geometry_msgs::PoseArray::ConstPtr& msg) override;
+  void processMessage(const geometry_msgs::msg::PoseArray::ConstSharedPtr msg) override;
 
 private:
-  bool setTransform(std_msgs::Header const& header);
+  bool validateFloats(const geometry_msgs::msg::PoseArray& msg);
+  bool validateQuaternions(const geometry_msgs::msg::PoseArray& pose);
+  bool setTransform(std_msgs::msg::Header const& header);
   void updateAxes();
   void updateDisplay();
-  rviz::Axes* makeAxes();
+  std::unique_ptr<rviz_rendering::Axes> makeAxes();
   void updatePoints();
   void updateLines();
   void updateText();
@@ -41,32 +56,32 @@ private:
   std::vector<OgrePose> poses_;
 
   // Axes Display
-  boost::ptr_vector<rviz::Axes> axes_;
+  std::vector<std::unique_ptr<rviz_rendering::Axes>> axes_;
   Ogre::SceneNode* axes_node_;
-  rviz::FloatProperty* axes_length_property_;
-  rviz::FloatProperty* axes_radius_property_;
-  BoolProperty* axes_visibility_property_;
+  properties::FloatProperty* axes_length_property_;
+  properties::FloatProperty* axes_radius_property_;
+  properties::BoolProperty* axes_visibility_property_;
 
   // Points Display
   Ogre::ManualObject* pts_object_;
   Ogre::MaterialPtr pts_material_;
-  BoolProperty* pts_visibility_property_;
-  ColorProperty* pts_color_property_;
-  FloatProperty* pts_size_property_;
+  properties::BoolProperty* pts_visibility_property_;
+  properties::ColorProperty* pts_color_property_;
+  properties::FloatProperty* pts_size_property_;
 
   // Lines Display
   Ogre::ManualObject* lines_object_;
   Ogre::MaterialPtr lines_material_;
-  BoolProperty* lines_visibility_property_;
-  ColorProperty* lines_color_property_;
+  properties::BoolProperty* lines_visibility_property_;
+  properties::ColorProperty* lines_color_property_;
 
   // Text
   Ogre::SceneNode* start_text_node_;
-  MovableText* start_text_;
+  rviz_rendering::MovableText* start_text_;
   Ogre::SceneNode* end_text_node_;
-  MovableText* end_text_;
-  BoolProperty* text_visibility_property_;
-  FloatProperty* text_size_property_;
+  rviz_rendering::MovableText* end_text_;
+  properties::BoolProperty* text_visibility_property_;
+  properties::FloatProperty* text_size_property_;
 
 private Q_SLOTS:
   void updateAxesGeometry();
@@ -83,4 +98,4 @@ private Q_SLOTS:
   void updateTextSize();
 };
 
-}  // namespace rviz
+}  // namespace rviz_common
